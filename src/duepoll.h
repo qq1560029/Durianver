@@ -4,14 +4,11 @@
 
 #ifndef DURIANVER_EPOLL_H
 #define DURIANVER_EPOLL_H
-#include <fcntl.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <memory>
-#include <cstdlib>
-#include <sys/epoll.h>
 
-namespace EPOLL {
+
+#include <functional>
+
+namespace DURIANVER {
 
 #define LISTEN_QUEUE_LENGTH 1024
 #define BUFFER_SIZE 1024
@@ -21,7 +18,12 @@ namespace EPOLL {
     public:
         explicit Epoll(int _port);
         ~Epoll();
-        int init();
+        Epoll(const Epoll&)=delete;
+        Epoll& operator=(const Epoll&)=delete;
+
+        int start();
+        typedef std::function<void(const char*,const int,char*,int&)> taskcallbackfunc;
+        void setTaskCallback(taskcallbackfunc taskFunc);
 
     private:
         int makeSocketNonblocking(int fd);
@@ -29,6 +31,7 @@ namespace EPOLL {
         int port;
         int listenFd;
         int epollFd;
+        taskcallbackfunc taskCallbackFunc;
     };
 }
 

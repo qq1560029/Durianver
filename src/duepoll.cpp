@@ -1,9 +1,17 @@
 #include "duepoll.h"
 
+#include <vector>
+#include <memory>
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <memory.h>
+#include <sys/epoll.h>
 //
 // Created by justin on 2/26/17.
 //
-namespace EPOLL {
+namespace DURIANVER {
 
     Epoll::Epoll(int _port) : port(_port) {
 
@@ -13,7 +21,7 @@ namespace EPOLL {
 
     }
 
-    int Epoll::init(){
+    int Epoll::start(){
         listenFd=getListenFd(port);
         if(listenFd<0)
             throw "Get listen fd failed";
@@ -27,18 +35,59 @@ namespace EPOLL {
             throw "Create epoll failed";
         event.data.fd=listenFd;
         event.events=EPOLLIN|EPOLLET;
-        int state=epoll_ctl(epollFd,EPOLL_CTL_ADD,listenFd,&event);
-        if(state<0)
+        if(epoll_ctl(epollFd,EPOLL_CTL_ADD,listenFd,&event)<0)
             throw "Epoll add listenFd failed";
 
-        std::unique_ptr<epoll_event[]> events(new epoll_event[MAXENVETS]);
+        std::vector<epoll_event> events(MAXENVETS);
 
         while(1){
-            
+            int nums=epoll_wait(epollFd,events.data(),MAXENVETS,-1);
+            for (int i = 0; i < nums ; ++i) {
+                if(listenFd==events[i].data.fd){
+                    while(1) {
+                        struct sockaddr inAddr;
+                        socklen_t inAddrLen;
+                        int inFd = accept(listenFd, &inAddr, &inAddrLen);
+                        if (inFd < 0) {
+                            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                                break;
+                            } else {
+                                throw "Accept new connect failed";
+                            }
+                        }
+                        if (makeSocketNonblocking(inFd) < 0)
+                            throw "Make new connect fd non-blocking failed";
+                        event.data.fd = inFd;
+                        event.events = EPOLLIN | EPOLLET;
+                        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, inFd, &event) < 0)
+                            throw "Add new connect fd to epoll failed";
+                        continue;
+                    }
+                }
+                else if((events[i].events& EPOLLERR)||(events[i].events& EPOLLHUP)||(!(events[i].events& EPOLLIN))){
+                    //print epoll error
+                    close(events[i].data.fd);
+                    continue;
+                }
+                else{
+                    while(1) {
+                        char buf[1024];
+                        int count = read(events[i].data.fd, buf, sizeof(buf));
+                        if (count <= 0) {
+                           // close(events[i].data.fd);
+                            break;
+                        }
+                        char wBuf[1024];
+                        int wBufLen=0;
+                        taskCallbackFunc(buf,count,wBuf,wBufLen);
+                        write(events[i].data.fd,wBuf,wBufLen);
+                    }
+                }
+            }
         }
-
         close(epollFd);
         close(listenFd);
+        return 0;
     }
 
     int Epoll::makeSocketNonblocking(int fd){
@@ -79,6 +128,10 @@ namespace EPOLL {
             return -1;
 
         return listenFd;
+    }
+
+    void Epoll::setTaskCallback(Epoll::taskcallbackfunc taskFunc) {
+        taskCallbackFunc=taskFunc;
     }
 }
 
