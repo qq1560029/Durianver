@@ -9,17 +9,26 @@
 #include "duepoll.h"
 
 using namespace DURIANVER;
+using namespace std::placeholders;
 
-void task(const char* buf,const int count,char* wbuf,int &len){
-    for(int i=0;i<count;i++){
-        wbuf[i]=buf[i]+1;
+void task(const int fd){
+    char buf[1024];
+    while (1) {
+        int count = read(fd, buf, sizeof(buf));
+        if(count==0)
+            break;
+        else if(count<0){
+            if(errno!=EAGAIN)
+                break;
+        }
+        else
+            write(fd,buf,count);
     }
-    len=count;
 }
 
 int main() {
     Epoll netserver(18868);
-    netserver.setTaskCallback(std::bind(&task,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3,std::placeholders::_4));
+    netserver.setTaskCallback(std::bind(&task,_1));
     netserver.start();
     return 0;
 }

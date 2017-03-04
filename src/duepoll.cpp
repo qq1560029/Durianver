@@ -8,11 +8,12 @@
 #include <netinet/in.h>
 #include <memory.h>
 #include <sys/epoll.h>
+
+#include "threadpoll.h"
 //
 // Created by justin on 2/26/17.
 //
 namespace DURIANVER {
-
     Epoll::Epoll(int _port) : port(_port) {
 
     }
@@ -39,6 +40,7 @@ namespace DURIANVER {
             throw "Epoll add listenFd failed";
 
         std::vector<epoll_event> events(MAXENVETS);
+        ThreadPoll threadPoll(std::thread::hardware_concurrency()-1);  //left one thread for epoll
 
         while(1){
             int nums=epoll_wait(epollFd,events.data(),MAXENVETS,-1);
@@ -58,7 +60,7 @@ namespace DURIANVER {
                         if (makeSocketNonblocking(inFd) < 0)
                             throw "Make new connect fd non-blocking failed";
                         event.data.fd = inFd;
-                        event.events = EPOLLIN | EPOLLET;
+                        event.events = EPOLLIN | EPOLLET;// | EPOLLONESHOT;
                         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, inFd, &event) < 0)
                             throw "Add new connect fd to epoll failed";
                         continue;
@@ -70,18 +72,7 @@ namespace DURIANVER {
                     continue;
                 }
                 else{
-                    while(1) {
-                        char buf[1024];
-                        int count = read(events[i].data.fd, buf, sizeof(buf));
-                        if (count <= 0) {
-                           // close(events[i].data.fd);
-                            break;
-                        }
-                        char wBuf[1024];
-                        int wBufLen=0;
-                        taskCallbackFunc(buf,count,wBuf,wBufLen);
-                        write(events[i].data.fd,wBuf,wBufLen);
-                    }
+                    threadPoll.submit<taskcallbackfunc>(taskCallbackFunc(events[i].data.fd));
                 }
             }
         }
@@ -130,7 +121,7 @@ namespace DURIANVER {
         return listenFd;
     }
 
-    void Epoll::setTaskCallback(Epoll::taskcallbackfunc taskFunc) {
+    void Epoll::setTaskCallback(taskcallbackfunc taskFunc) {
         taskCallbackFunc=taskFunc;
     }
 }
