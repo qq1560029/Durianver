@@ -22,7 +22,7 @@ namespace DURIANVER {
         Epoll& operator=(const Epoll&)=delete;
 
         int start();
-        typedef std::function<void(const int)> taskcallbackfunc;
+        typedef std::function<void(int)> taskcallbackfunc;
         void setTaskCallback(taskcallbackfunc taskFunc);
 
     private:

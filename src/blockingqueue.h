@@ -59,6 +59,11 @@ namespace DURIANVER {
             }
         }
 
+        void swap(std::deque<T> &newQue){
+            std::lock_guard<std::mutex> lk(mt);
+            bdeque.swap(newQue);
+        }
+
     private:
         mutable std::mutex mt;
         std::condition_variable cond;

@@ -1,25 +1,20 @@
 #include <iostream>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <memory.h>
 #include "duepoll.h"
+#include "logging.h"
 
 using namespace DURIANVER;
 using namespace std::placeholders;
 
 void task(const int fd){
-    char buf[1024];
+    char buf[10];
     while (1) {
         int count = read(fd, buf, sizeof(buf));
-        if(count==0)
-            break;
-        else if(count<0){
-            if(errno!=EAGAIN)
+        if(count<=0){
+            if(errno!=EAGAIN) {
+                close(fd);
                 break;
+            }
         }
         else
             write(fd,buf,count);
@@ -27,8 +22,10 @@ void task(const int fd){
 }
 
 int main() {
+    logInit();
+    logINFO<<"Init server, port:18868";
     Epoll netserver(18868);
-    netserver.setTaskCallback(std::bind(&task,_1));
+    netserver.setTaskCallback(std::bind(task,_1));
     netserver.start();
     return 0;
 }

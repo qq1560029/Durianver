@@ -10,6 +10,7 @@
 #include <sys/epoll.h>
 
 #include "threadpoll.h"
+#include "logging.h"
 //
 // Created by justin on 2/26/17.
 //
@@ -19,26 +20,38 @@ namespace DURIANVER {
     }
 
     Epoll::~Epoll() {
-
+        if(epollFd>=0){
+            close(epollFd);
+        }
+        if(listenFd>=0) {
+            close(listenFd);
+        }
     }
 
     int Epoll::start(){
         listenFd=getListenFd(port);
-        if(listenFd<0)
-            throw "Get listen fd failed";
+        if(listenFd<0){
+            logERROR<<"Get listen fd failed";
+            return -1;
+        }
 
-        if(makeSocketNonblocking(listenFd)<0)
-            throw "Make listen socket non-blocking faild";
+        if(makeSocketNonblocking(listenFd)<0) {
+            logERROR << "Make listen socket non-blocking faild";
+            return -1;
+        }
 
         struct epoll_event event;
         epollFd=epoll_create(1);
-        if(epollFd<0)
-            throw "Create epoll failed";
+        if(epollFd<0) {
+            logERROR<<"Create epoll failed";
+            return -1;
+        }
         event.data.fd=listenFd;
         event.events=EPOLLIN|EPOLLET;
-        if(epoll_ctl(epollFd,EPOLL_CTL_ADD,listenFd,&event)<0)
-            throw "Epoll add listenFd failed";
-
+        if(epoll_ctl(epollFd,EPOLL_CTL_ADD,listenFd,&event)<0) {
+            logERROR<< "Epoll add listenFd failed";
+            return -1;
+        }
         std::vector<epoll_event> events(MAXENVETS);
         ThreadPoll threadPoll(std::thread::hardware_concurrency()-1);  //left one thread for epoll
 
@@ -54,15 +67,17 @@ namespace DURIANVER {
                             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                                 break;
                             } else {
-                                throw "Accept new connect failed";
+                                logWARN<<"Accept new connect failed";
                             }
                         }
-                        if (makeSocketNonblocking(inFd) < 0)
-                            throw "Make new connect fd non-blocking failed";
+                        if (makeSocketNonblocking(inFd) < 0) {
+                            logWARN<<"Make new connect fd non-blocking failed";
+                        }
                         event.data.fd = inFd;
-                        event.events = EPOLLIN | EPOLLET;// | EPOLLONESHOT;
-                        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, inFd, &event) < 0)
-                            throw "Add new connect fd to epoll failed";
+                        event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+                        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, inFd, &event) < 0) {
+                            logWARN<<"Add new connect fd to epoll failed";
+                        }
                         continue;
                     }
                 }
@@ -72,12 +87,11 @@ namespace DURIANVER {
                     continue;
                 }
                 else{
-                    threadPoll.submit<taskcallbackfunc>(taskCallbackFunc(events[i].data.fd));
+                    int fd=events[i].data.fd;
+                    threadPoll.submit<std::function<void()>>(bind(taskCallbackFunc,fd));
                 }
             }
         }
-        close(epollFd);
-        close(listenFd);
         return 0;
     }
 
@@ -99,12 +113,12 @@ namespace DURIANVER {
 
     int Epoll::getListenFd(int port){
         struct sockaddr_in serverAddr;
-        bzero(&serverAddr, sizeof(serverAddr));
+        bzero((char *)&serverAddr, sizeof(serverAddr));
         serverAddr.sin_family=AF_INET;
-        serverAddr.sin_addr.s_addr=htons(INADDR_ANY);
-        serverAddr.sin_port=htons(port);
+        serverAddr.sin_addr.s_addr=htonl(INADDR_ANY);
+        serverAddr.sin_port=htons((unsigned short)port);
 
-        int listenFd=socket(PF_INET,SOCK_STREAM,0);  //AF_INET PF_INET almost same
+        int listenFd=socket(AF_INET,SOCK_STREAM,0);  //AF_INET PF_INET almost same
         if(listenFd<0)
             return -1;
 
@@ -112,7 +126,7 @@ namespace DURIANVER {
         if(setsockopt(listenFd,SOL_SOCKET,SO_REUSEADDR,(const void *)&flag, sizeof(int))<0)
             return -1;
 
-        if(bind(listenFd,(struct sockaddr*)&serverAddr,sizeof(serverAddr)))
+        if(bind(listenFd,(struct sockaddr*)&serverAddr,sizeof(serverAddr))<0)
             return -1;
 
         if(listen(listenFd,LISTEN_QUEUE_LENGTH)<0)

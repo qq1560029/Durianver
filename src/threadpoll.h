@@ -2,8 +2,7 @@
 // Created by justin on 3/1/17.
 //
 
-#ifndef DURIANVER_THREADPOLL_H
-#define DURIANVER_THREADPOLL_H
+#pragma once
 
 #include <boost/noncopyable.hpp>
 #include <mutex>
@@ -16,10 +15,9 @@ namespace DURIANVER {
     class ThreadPoll : boost::noncopyable {
     public:
         explicit ThreadPoll(size_t _threadNum):threadNum(_threadNum),done(false){
-            unsigned const thread_count=std::thread::hardware_concurrency();
             try
             {
-                for(unsigned i=0;i<thread_count;++i)
+                for(size_t i=0;i<threadNum;++i)
                 {
                     threads.push_back(
                             std::thread(&ThreadPoll::workThread,this));
@@ -39,7 +37,7 @@ namespace DURIANVER {
         template<typename FunctionType>
         void submit(FunctionType f)
         {
-            workQueue.push(std::function<void()>(f));
+            workQueue.push(f);
         }
 
     private:
@@ -62,4 +60,3 @@ namespace DURIANVER {
     };
 }
 
-#endif //DURIANVER_THREADPOLL_H
