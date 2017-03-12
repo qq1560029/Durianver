@@ -2,8 +2,7 @@
 // Created by justin on 3/4/17.
 //
 
-#ifndef DURIANVER_BLOCKINGQUEUE_H
-#define DURIANVER_BLOCKINGQUEUE_H
+#pragma once
 
 #include <thread>
 #include <queue>
@@ -71,4 +70,3 @@ namespace DURIANVER {
     };
 }
 
-#endif //DURIANVER_BLOCKINGQUEUE_H

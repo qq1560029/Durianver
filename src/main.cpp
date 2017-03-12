@@ -22,8 +22,7 @@ void task(const int fd){
 }
 
 int main() {
-    logInit();
-    logINFO<<"Init server, port:18868";
+    LOGINFO<<"Init server, port:18868";
     Epoll netserver(18868);
     netserver.setTaskCallback(std::bind(task,_1));
     netserver.start();

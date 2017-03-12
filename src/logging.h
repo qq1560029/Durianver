@@ -2,8 +2,7 @@
 // Created by justin on 3/6/17.
 //
 
-#ifndef DURIANVER_LOGGING_H
-#define DURIANVER_LOGGING_H
+#pragma once
 
 #include <fstream>
 #include <sstream>
@@ -17,23 +16,21 @@
 
 namespace DURIANVER {
 
-    class Logging;
-    std::shared_ptr<Logging> logger;
-    std::once_flag logInitOnce;
-
-    void logInit(){
-        logger=std::make_shared<Logging>();
-    }
-
     class Logging : boost::noncopyable {
     public:
         Logging() : done(false){
-            std::call_once(logInitOnce,&Logging::initLog,this);
+            initLog();
         }
 
         ~Logging(){
             done=true;
             logT.join();
+        }
+
+        static std::shared_ptr<Logging> getLog(){
+            if(!logInstance)
+                logInstance=std::make_shared<Logging>();
+            return logInstance;
         }
 
         void operator<<(std::string &&log) {
@@ -49,64 +46,31 @@ namespace DURIANVER {
         BlockingQueue<std::string> logQueue;
         std::atomic_bool done;
         std::thread logT;
+        static std::shared_ptr<Logging> logInstance;
 
-        void initLog(void){
-            std::time_t t = std::time(nullptr);
-            std::stringstream ss;
-            ss << std::put_time(std::localtime(&t), "%F %T");
-            std::string logFileName(ss.str());
-            logFileName += " log.out";
-            logFile.open(logFileName, std::ios::out | std::ios::app | std::ios::ate);
-            if (logFile.bad()) {
-                throw "Creat logFile failed";
-            }
-            logT=std::thread(&Logging::logThread,this);
-        }
+        void initLog(void);
 
-        void logThread(){
-            while(!done) {
-                if(logQueue.empty()){
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
-                else {
-                    std::deque<std::string> swapQue;
-                    logQueue.swap(swapQue);
-                    for (auto i:swapQue) {
-                        logFile << i;
-                    }
-                    logFile.flush();
-                }
-            }
-            std::deque<std::string> swapQue;
-            logQueue.swap(swapQue);
-            for (auto i:swapQue) {
-                logFile << i;
-            }
-            logFile.close();
-        }
+        void logThread(void);
     };
 
-    class logINFO{
+    static class LogINFO{
     public:
         void operator<<(std::string &&log){
-            *logger<<"[INFO] "+log+"\n";
-
+            *Logging::getLog()<<"[INFO]"+log+"\n";
         }
-    }logINFO;
+    }LOGINFO;
 
-    class logERROR{
+    static class LogERR{
     public:
         void operator<<(std::string &&log){
-            *logger<<"[ERROR] "+log+"\n";
+            *Logging::getLog()<<"[ERROR]"+log+"\n";
         }
-    }logERROR;
+    }LOGERR;
 
-    class logWARN{
+    static class LogWARN{
     public:
         void operator<<(std::string &&log){
-            *logger<<"[WARNING] "+log+"\n";
+            *Logging::getLog()<<"[WARNING]"+log+"\n";
         }
-    }logWARN;
+    }LOGWARN;
 }
-
-#endif //DURIANVER_LOGGING_H

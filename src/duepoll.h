@@ -2,9 +2,7 @@
 // Created by justin on 2/26/17.
 //
 
-#ifndef DURIANVER_EPOLL_H
-#define DURIANVER_EPOLL_H
-
+#pragma once
 
 #include <functional>
 
@@ -34,6 +32,3 @@ namespace DURIANVER {
         taskcallbackfunc taskCallbackFunc;
     };
 }
-
-
-#endif //DURIANVER_EPOLL_H

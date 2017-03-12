@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <memory>
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -11,6 +10,7 @@
 
 #include "threadpoll.h"
 #include "logging.h"
+extern class logERROR logERROR;
 //
 // Created by justin on 2/26/17.
 //
@@ -31,29 +31,29 @@ namespace DURIANVER {
     int Epoll::start(){
         listenFd=getListenFd(port);
         if(listenFd<0){
-            logERROR<<"Get listen fd failed";
+            LOGERR<<"Get listen fd failed";
             return -1;
         }
 
         if(makeSocketNonblocking(listenFd)<0) {
-            logERROR << "Make listen socket non-blocking faild";
+            LOGERR << "Make listen socket non-blocking faild";
             return -1;
         }
 
         struct epoll_event event;
         epollFd=epoll_create(1);
         if(epollFd<0) {
-            logERROR<<"Create epoll failed";
+            LOGERR<<"Create epoll failed";
             return -1;
         }
         event.data.fd=listenFd;
         event.events=EPOLLIN|EPOLLET;
         if(epoll_ctl(epollFd,EPOLL_CTL_ADD,listenFd,&event)<0) {
-            logERROR<< "Epoll add listenFd failed";
+            LOGERR<< "Epoll add listenFd failed";
             return -1;
         }
         std::vector<epoll_event> events(MAXENVETS);
-        ThreadPoll threadPoll(std::thread::hardware_concurrency()-1);  //left one thread for epoll
+        ThreadPoll threadPoll(std::thread::hardware_concurrency());  //left one thread for epoll
 
         while(1){
             int nums=epoll_wait(epollFd,events.data(),MAXENVETS,-1);
@@ -67,16 +67,16 @@ namespace DURIANVER {
                             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                                 break;
                             } else {
-                                logWARN<<"Accept new connect failed";
+                                LOGWARN<<"Accept new connect failed";
                             }
                         }
                         if (makeSocketNonblocking(inFd) < 0) {
-                            logWARN<<"Make new connect fd non-blocking failed";
+                            LOGWARN<<"Make new connect fd non-blocking failed";
                         }
                         event.data.fd = inFd;
                         event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
                         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, inFd, &event) < 0) {
-                            logWARN<<"Add new connect fd to epoll failed";
+                            LOGWARN<<"Add new connect fd to epoll failed";
                         }
                         continue;
                     }
