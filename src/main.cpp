@@ -7,9 +7,10 @@ using namespace DURIANVER;
 using namespace std::placeholders;
 
 void task(const int fd){
-    char buf[10];
+    char buf[1024];
     while (1) {
         int count = read(fd, buf, sizeof(buf));
+        std::cout<<buf;
         if(count<=0){
             if(errno!=EAGAIN) {
                 close(fd);
