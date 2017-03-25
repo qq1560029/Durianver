@@ -15,24 +15,37 @@ namespace DURIANVER {
 
         void handleEvent();
 
-        void setReadCallBack(std::function<void(int)> &cb){readCallBack_=cb;}
-        void setWriteCallBack(std::function<void(int)> &cb){writeCallBack_=cb;}
+        void setReadCallBack(const std::function<void(void)>& cb){readCallBack_=cb;}
+        void setWriteCallBack(const std::function<void(void)>& cb){writeCallBack_=cb;}
 
         void handleRead(){readCallBack_;}
         void handleWrite(){writeCallBack_;}
 
-        void setRead(){event_.events=EPOLLIN|EPOLLONESHOT;}
-        void setWrite(){event_.events=EPOLLOUT|EPOLLONESHOT;}
+        void enableRead(){event_&=readEvent_;updateWrap();}
+        void disableRead(){event_&=~readEvent_;updateWrap();}
+        void enableWrite(){event_=writeEvent_;updateWrap();}
+        void disableWrite(){event_=~writeEvent_;updateWrap();}
+        void disableAll(){event_=noneEvent_;updateWrap();}
+        int isReadEnabled() const { return event_&readEvent_;}
+        int isWriteEnabled() const { return event_&writeEvent_;}
 
-        epoll_event getEvent(){ return event_;}
+        void setEvent(int event){ recvEvent_=event;}
         int getSocketFd(){ return socket_;}
-
+        int makeSocketNonblocking();
 
     private:
         int socket_;
-        epoll_event event_;
-        std::function<void(int)> readCallBack_;
-        std::function<void(int)> writeCallBack_;
+        int event_;
+        int recvEvent_;
+        std::function<void(void)> readCallBack_;
+        std::function<void(void)> writeCallBack_;
+        std::function<void(void)> closeCallBack_;
+        std::function<void(void)> errorCallBack_;
+
+        const int noneEvent_ = 0;
+        const int readEvent_ = EPOLLIN | EPOLLPRI;
+        const int writeEvent_ = EPOLLOUT;
+        void updateWrap();
     };
 }
 

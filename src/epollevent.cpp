@@ -38,7 +38,7 @@ namespace DURIANVER {
             activeWraps.resize(nums);
         for (int i = 0; i < nums; ++i) {
             activeWraps[i]= static_cast<SocketWrap*>(events_[i].data.ptr);
-            activeWraps[i]->getEvent().events=events_[i].events;
+            activeWraps[i]->setEvent(events_[i].events);
         }
         return nums;
     }
