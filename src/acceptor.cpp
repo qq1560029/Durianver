@@ -2,10 +2,10 @@
 // Created by justin on 3/22/17.
 //
 
-#include "acceptor.h"
 #include "unistd.h"
 #include "netinet/in.h"
 #include "memory.h"
+#include "acceptor.h"
 #include "socketwrap.h"
 #include "logging.h"
 
@@ -13,23 +13,26 @@
 
 namespace DURIANVER {
 
-    Acceptor::Acceptor(int port,EpollEvent& epoll):port_(port),epoll_(epoll) {
+    Acceptor::Acceptor(int port,Loop* loop):port_(port),loop_(loop) {
         listenFd_=getListenFd(port_);
+
         if(listenFd_<0){
             LOGERR<<"Creat listen fd failed";
             exit(0);
         }
-        SocketWrap accept(listenFd_);
-        accept.setReadCallBack(std::bind(&Acceptor::readCb,this));
-        accept.enableRead();
+
+        accept_ =new SocketWrap(loop_, listenFd_);
+        accept_->setReadCallBack(std::bind(&Acceptor::readCallBack, this));
+        accept_->enableRead();
     }
 
-    void Acceptor::readCb() {
+    void Acceptor::readCallBack() {
         struct sockaddr inAddr;
-        socklen_t inAddrLen;
+        socklen_t inAddrLen=0;
         int inFd = accept(listenFd_, &inAddr, &inAddrLen);
         if(inFd>0){
-
+            if(acceptCallBack_)
+                acceptCallBack_(inFd);
         }
         else{
             LOGERR<<"Acceptor readcallback accept fialed";
@@ -61,4 +64,7 @@ namespace DURIANVER {
         return listenFd;
     }
 
+    Acceptor::~Acceptor() {
+        delete accept_;
+    }
 }

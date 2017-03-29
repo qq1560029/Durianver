@@ -1,31 +1,25 @@
 #include <iostream>
-#include <unistd.h>
-#include "duepoll.h"
 #include "logging.h"
+#include "acceptor.h"
+#include "loop.h"
+#include "epollevent.h"
 
 using namespace DURIANVER;
 using namespace std::placeholders;
 
-void task(const int fd){
-    char buf[1024];
-    while (1) {
-        int count = read(fd, buf, sizeof(buf));
-        std::cout<<buf;
-        if(count<=0){
-            if(errno!=EAGAIN) {
-                close(fd);
-                break;
-            }
-        }
-        else
-            write(fd,buf,count);
-    }
+void acceptIn(int inFd){
+    char buf[512];
+    int n=read(inFd,buf,sizeof(buf));
+    write(inFd,buf,n);
+    close(inFd);
 }
 
 int main() {
     LOGINFO<<"Init server, port:18868";
-    Epoll netserver(18868);
-    netserver.setTaskCallback(std::bind(task,_1));
-    netserver.start();
+    EpollEvent epollevent;
+    Loop loop(&epollevent);
+    Acceptor accept(18868,&loop);
+    accept.setAcceptCallBack(std::bind(acceptIn,_1));
+    loop.startLoop();
     return 0;
 }

@@ -73,4 +73,39 @@ namespace DURIANVER {
             *Logging::getLog()<<"[WARNING]"+log+"\n";
         }
     }LOGWARN;
+//
+//    class logBase{
+//    public:
+//        logBase& operator<<(std::string &&log){
+//            logTmp+=log;
+//            return *this;
+//        }
+//        logBase& operator<<(int &&log){
+//            std::stringstream ss;
+//            ss<<log;
+//            logTmp+=ss.str();
+//            return *this;
+//        }
+//
+//        void initLog(std::string &&head){
+//            logTmp+=head;
+//        }
+//
+//        void exitLog(){
+//            *Logging::getLog()<<logTmp+"\n";
+//        }
+//    private:
+//        std::string logTmp;
+//    };
+//
+//    class logIn:public logBase{
+//    public:
+//        logIn(){
+//            initLog("[INFO]");
+//        }
+//        ~logIn(){
+//            exitLog();
+//        }
+//    };
+
 }

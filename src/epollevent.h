@@ -5,8 +5,8 @@
 #pragma once
 
 #include <sys/epoll.h>
-#include "socketwrap.h"
 #include <vector>
+#include "socketwrap.h"
 
 namespace DURIANVER {
     class EpollEvent {
@@ -15,8 +15,8 @@ namespace DURIANVER {
 
         ~EpollEvent();
 
-        int epoll(std::vector<SocketWrap *> activeWraps);
-        int ctl(unsigned int epollCtl, SocketWrap *wrap);
+        int epoll(std::vector<SocketWrap*> &activeWraps);
+        int ctl(unsigned int epollCtl, SocketWrap* wrap);
 
     private:
         int epollFd_;

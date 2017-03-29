@@ -6,10 +6,11 @@
 #include "fcntl.h"
 #include "socketwrap.h"
 #include "logging.h"
+#include "loop.h"
 
 namespace DURIANVER {
 
-    SocketWrap::SocketWrap(int fd):socket_(fd) {
+    SocketWrap::SocketWrap(Loop *loop, int fd) : loop_(loop),socket_(fd),isAddToEpoll_(false),event_(0),recvEvent_(0) {
         if(makeSocketNonblocking()<0){
             LOGERR<<"Make socket non blocking failed";
             exit(0);
@@ -61,7 +62,7 @@ namespace DURIANVER {
     }
 
     void SocketWrap::updateWrap() {
-
+        loop_->updateSocketWraps(this);
     }
 
 }

@@ -5,12 +5,15 @@
 #pragma once
 
 #include <functional>
-#include <sys/epoll.h>
+#include "sys/epoll.h"
 
 namespace DURIANVER {
+
+    class Loop;
+
     class SocketWrap {
     public:
-        SocketWrap(int fd);
+        SocketWrap(Loop* loop, int fd);
         ~SocketWrap();
 
         void handleEvent();
@@ -18,22 +21,28 @@ namespace DURIANVER {
         void setReadCallBack(const std::function<void(void)>& cb){readCallBack_=cb;}
         void setWriteCallBack(const std::function<void(void)>& cb){writeCallBack_=cb;}
 
-        void handleRead(){readCallBack_;}
-        void handleWrite(){writeCallBack_;}
+        void handleRead(){readCallBack_();}
+        void handleWrite(){writeCallBack_();}
 
-        void enableRead(){event_&=readEvent_;updateWrap();}
+        void enableRead(){event_|=readEvent_;updateWrap();}
         void disableRead(){event_&=~readEvent_;updateWrap();}
-        void enableWrite(){event_=writeEvent_;updateWrap();}
-        void disableWrite(){event_=~writeEvent_;updateWrap();}
+        void enableWrite(){event_|=writeEvent_;updateWrap();}
+        void disableWrite(){event_&=~writeEvent_;updateWrap();}
         void disableAll(){event_=noneEvent_;updateWrap();}
         int isReadEnabled() const { return event_&readEvent_;}
         int isWriteEnabled() const { return event_&writeEvent_;}
 
         void setEvent(int event){ recvEvent_=event;}
-        int getSocketFd(){ return socket_;}
+        int getEvent() const { return event_;}
+        int getSocketFd() const { return socket_;}
         int makeSocketNonblocking();
 
+        void addToEpoll(bool b) {isAddToEpoll_=b;}
+        bool isAddToEpoll() const { return isAddToEpoll_;}
+
     private:
+        bool isAddToEpoll_;
+        Loop* loop_;
         int socket_;
         int event_;
         int recvEvent_;
@@ -49,4 +58,3 @@ namespace DURIANVER {
     };
 }
 
-#endif //DURIANVER_SOCKETWRAP_H

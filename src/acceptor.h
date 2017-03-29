@@ -5,21 +5,24 @@
 
 #pragma once
 
-#include "epollevent.h"
+#include "loop.h"
 
 namespace DURIANVER {
     class Acceptor {
     public:
-        Acceptor(int port,EpollEvent& epoll);
+        Acceptor(int port,Loop* loop);
         ~Acceptor();
 
+        void setAcceptCallBack(const std::function<void(int)>& cb){acceptCallBack_=cb;}
+
     private:
-        EpollEvent epoll_;
+        Loop* loop_;
         int port_;
         int listenFd_;
+        SocketWrap* accept_;
+        std::function<void(int)> acceptCallBack_;
         int getListenFd(int port);
-        void readCb();
+        void readCallBack();
     };
 }
 
-#endif //DURIANVER_ACCEPTOR_H

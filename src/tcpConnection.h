@@ -5,10 +5,14 @@
 
 #pragma once
 
+#include "socketwrap.h"
+
 namespace DURIANVER {
-    class tcpConnection {
+    class TcpConnection {
+    public:
+       // TcpConnection(SocketWrap* sw);
+
+    private:
 
     };
 }
-
-#endif //DURIANVER_TCPCONNECTION_H

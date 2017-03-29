@@ -4,25 +4,24 @@
 
 #pragma once
 
+#include <vector>
 #include "epollevent.h"
 #include "socketwrap.h"
-#include <vector>
 
 namespace DURIANVER {
     class Loop {
     public:
         Loop(EpollEvent* epoll);
+       // ~Loop();
 
-        ~Loop();
-
-        int init();
-
+       // int init();
         int startLoop();
+        void updateSocketWraps(SocketWrap* sw);
 
     private:
         EpollEvent* epoll_;
         int looping_;
-        std::vector<SocketWrap*> activeWraps;
+        std::vector<SocketWrap*> activeWraps_;
     };
 }
 

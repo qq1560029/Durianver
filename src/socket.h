@@ -9,6 +9,3 @@ namespace DURIANVER {
 
     };
 }
-
-
-#endif //DURIANVER_SOCKET_H
