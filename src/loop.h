@@ -22,6 +22,7 @@ namespace DURIANVER {
         EpollEvent* epoll_;
         int looping_;
         std::vector<SocketWrap*> activeWraps_;
+
     };
 }
 

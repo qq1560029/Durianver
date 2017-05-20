@@ -11,7 +11,7 @@ void acceptIn(int inFd){
     char buf[512];
     int n=read(inFd,buf,sizeof(buf));
     write(inFd,buf,n);
-    close(inFd);
+   // close(inFd);
 }
 
 int main() {
@@ -19,7 +19,7 @@ int main() {
     EpollEvent epollevent;
     Loop loop(&epollevent);
     Acceptor accept(18868,&loop);
-    accept.setAcceptCallBack(std::bind(acceptIn,_1));
+    //accept.setAcceptCallBack(std::bind(acceptIn,_1));
     loop.startLoop();
     return 0;
 }

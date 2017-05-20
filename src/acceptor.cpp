@@ -8,6 +8,7 @@
 #include "acceptor.h"
 #include "socketwrap.h"
 #include "logging.h"
+#include "tcpConnection.h"
 
 #define LISTEN_QUEUE_LENGTH 1024
 
@@ -31,6 +32,8 @@ namespace DURIANVER {
         socklen_t inAddrLen=0;
         int inFd = accept(listenFd_, &inAddr, &inAddrLen);
         if(inFd>0){
+            TcpConnection* newSocketWrap=new TcpConnection(loop_,inFd);
+            //add newSocketWrap to Loop's Map,then update r/w cb in loop;
             if(acceptCallBack_)
                 acceptCallBack_(inFd);
         }

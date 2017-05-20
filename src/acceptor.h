@@ -6,6 +6,8 @@
 #pragma once
 
 #include "loop.h"
+#include "socketwrap.h"
+#include "tcpConnection.h"
 
 namespace DURIANVER {
     class Acceptor {
