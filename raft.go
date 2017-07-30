@@ -49,7 +49,7 @@ type Raft struct {
 	persister   *Persister          // Object to hold this peer's persisted state
 	me          int                 // this peer's index into peers[]
 	heartCh     chan bool
-	voteCh      chan bool
+	grantVoteCh      chan bool
 	beLeaderCh  chan bool
 	status      int8 // 0:follower 1:candidate 2:leader
 	term        int
@@ -129,13 +129,26 @@ type RequestVoteReply struct {
 //
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
 	if args.Term < rf.term {
 		reply.VoteGrant = false
 		reply.Term = rf.term
-	} else {
-		reply.VoteGrant = true
-		rf.term = args.Term
-		reply.Term = rf.term
+	}
+	
+	if args.Term>rf.term{
+		rf.status=0
+		rf.term=args.Term
+	}
+
+	else {
+		if rf.voteFor == -1 {
+			tf.voteFor=args.CandidateID
+			reply.VoteGrant = true
+			rf.term = args.Term
+			reply.Term = rf.term
+			rf.grantVoteCh <- true
+		}
 	}
 }
 
@@ -173,7 +186,36 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 	return ok
 }
 
+func election(rf *Raft) {
+	rf.mu.Lock()
+	rf.voteCount = 1
+	rf.term++
+	rf.mu.Unlock()
+	for i := range rf.peers {
+		if i != rf.me {
+			args := RequestVoteArgs{rf.me, rf.term}
+			reply := RequestVoteReply{}
+			go func(i int) {
+				rf.sendRequestVote(i, &args, &reply)
+				fmt.Printf("raft:%d term:%d send vote request to raft:%d\n", rf.me, rf.term, i)
+				rf.mu.Lock()
+				rf.grantVoteCh <- true
+				if reply.VoteGrant == true && rf.status == 1 {
+					rf.voteCount++
+					fmt.Printf("raft:%d term:%d has %d votes\n", rf.me, rf.term, rf.voteCount)
+					if rf.voteCount > (len(rf.peers) / 2) {
+						rf.beLeaderCh <- true
+					}
+				}
+				rf.mu.Unlock()
+			}(i)
+		}
+	}
+}
+
+//RequestAppendArgs
 type RequestAppendArgs struct {
+	//s
 	Term         int
 	LeaderID     int
 	PrevLogIndex int
@@ -182,17 +224,33 @@ type RequestAppendArgs struct {
 	LeaderCommit int
 }
 
+//RequestAppendReply
 type RequestAppendReply struct {
 	Term    int
 	Success bool
 }
 
+//RequestAppend
 func (rf *Raft) RequestAppend(args *RequestAppendArgs, reply *RequestAppendReply) {
+	rf.heartCh <- true
 }
 
 func (rf *Raft) sendRequestAppend(server int, args *RequestAppendArgs, reply *RequestAppendReply) bool {
 	ok := rf.peers[server].Call("Raft.RequestAppend", args, reply)
 	return ok
+}
+
+func broadcastAppendEntries(rf *Raft) {
+	for i := range rf.peers {
+		if i != rf.me {
+			args := RequestAppendArgs{}
+			reply := RequestAppendReply{}
+			go func(i int) {
+				rf.sendRequestAppend(i, &args, &reply)
+				//fmt.Printf("raft:%d term:%d send appendEntires to raft:%d\n", rf.me, rf.term, i)
+			}(i)
+		}
+	}
 }
 
 //
@@ -228,35 +286,8 @@ func (rf *Raft) Kill() {
 	// Your code here, if desired.
 }
 
-func election(rf *Raft) {
-	rf.mu.Lock()
-	rf.voteCount = 1
-	rf.term++
-	rf.mu.Unlock()
-	for i := range rf.peers {
-		if i != rf.me {
-			args := RequestVoteArgs{rf.me, rf.term}
-			reply := RequestVoteReply{}
-			go func(i int) {
-				rf.sendRequestVote(i, &args, &reply)
-				fmt.Printf("raft:%d term:%d send vote request to raft:%d\n", rf.me, rf.term, i)
-				rf.mu.Lock()
-				rf.voteCh <- true
-				if reply.VoteGrant == true && rf.status == 1 {
-					rf.voteCount++
-					fmt.Printf("raft:%d term:%d has %d votes\n", rf.me, rf.term, rf.voteCount)
-					if rf.voteCount > (len(rf.peers) / 2) {
-						rf.beLeaderCh <- true
-					}
-				}
-				rf.mu.Unlock()
-			}(i)
-		}
-	}
-}
-
-func randTermTime() int {
-	return (300 + rand.Intn(100))
+func randTermTime() time.Duration {
+	return time.Duration(400+rand.Intn(200)) * time.Millisecond
 }
 
 //
@@ -277,7 +308,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.persister = persister
 	rf.me = me
 	rf.heartCh = make(chan bool, 100)
-	rf.voteCh = make(chan bool, 100)
+	rf.grantVoteCh = make(chan bool, 100)
 	rf.beLeaderCh = make(chan bool, 100)
 	rf.status = 0
 	rf.term = 0
@@ -287,30 +318,34 @@ func Make(peers []*labrpc.ClientEnd, me int,
 			switch rf.status {
 			case 0: //FOLLOWER
 				select {
-				case <-time.After(time.Duration(randTermTime()) * time.Millisecond):
+				case <-time.After(randTermTime()):
 					rf.mu.Lock()
 					fmt.Printf("raft:%d term:%d become candidate\n", rf.me, rf.term)
 					rf.status = 1
 					rf.mu.Unlock()
 				case <-rf.heartCh:
-				case <-rf.voteCh:
-					fmt.Printf("raft:%d recieve vote\n", rf.me)
+					//fmt.Printf("raft:%d recieve heart\n", rf.me)
+				case <-rf.grantVoteCh:
+					//fmt.Printf("raft:%d recieve vote request\n", rf.me)
 				}
 			case 1: //CANDIDATE
 				election(rf)
 				select {
-				case <-time.After(time.Duration(randTermTime()) * time.Millisecond):
+				case <-time.After(randTermTime()):
 				case <-rf.beLeaderCh:
 					rf.mu.Lock()
-					fmt.Printf("raft:%d term:%d become leader\n", rf.me, rf.term)
 					rf.status = 2
+					fmt.Printf("raft:%d term:%d become leader\n", rf.me, rf.term)
 					rf.mu.Unlock()
 				case <-rf.heartCh:
 					rf.mu.Lock()
 					rf.status = 0
 					rf.mu.Unlock()
+					fmt.Printf("raft:%d recieve heart change candidate to follower\n", rf.me)
 				}
 			case 2: //LEADER
+				broadcastAppendEntries(rf)
+				time.Sleep(time.Duration(200) * time.Millisecond)
 			}
 		}
 	}(rf)
