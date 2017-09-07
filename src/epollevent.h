@@ -6,22 +6,24 @@
 
 #include <sys/epoll.h>
 #include <vector>
-#include "socketwrap.h"
 
-namespace DURIANVER {
-    class EpollEvent {
-    public:
-        EpollEvent();
+namespace DURIANVER
+{
 
-        ~EpollEvent();
+class SocketWrap;
 
-        int epoll(std::vector<SocketWrap*> &activeWraps);
-        int ctl(unsigned int epollCtl, SocketWrap* wrap);
+class EpollEvent
+{
+public:
+  EpollEvent();
+  ~EpollEvent();
 
-    private:
-        int epollFd_;
-        int maxEvents_;
-        std::vector<epoll_event> events_;
-    };
+  int epoll(std::vector<SocketWrap *> &activeWraps);
+  int ctl(unsigned int epollCtl, SocketWrap *wrap);
+
+private:
+  int epollFd_;
+  int maxEvents_;
+  std::vector<epoll_event> events_;
+};
 }
-

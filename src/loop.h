@@ -5,24 +5,43 @@
 #pragma once
 
 #include <vector>
-#include "epollevent.h"
-#include "socketwrap.h"
+#include <thread>
+#include <map>
 
-namespace DURIANVER {
-    class Loop {
-    public:
-        Loop(EpollEvent* epoll);
-       // ~Loop();
+namespace DURIANVER
+{
 
-       // int init();
-        int startLoop();
-        void updateSocketWraps(SocketWrap* sw);
+class EpollEvent;
+class SocketWrap;
+class TcpConnection;
 
-    private:
-        EpollEvent* epoll_;
-        int looping_;
-        std::vector<SocketWrap*> activeWraps_;
+struct ConInfo{
+    int loopId;
+};
 
-    };
+//LoopId=0: main loop to handle create sockets and dispatch connections to work loops
+//LoopId>0: work loops
+
+class Loop
+{
+  public:
+    Loop(int loopNum);
+    ~Loop();
+
+    // int init();
+    int startLoop();
+    void dispatchSocket(const int& fd);
+    void updateSocketWraps(SocketWrap *sw);
+    void delCon(TcpConnection* con);
+
+  private:
+    void loopBody(int loopId, EpollEvent* epoll, std::vector<SocketWrap*> &activeWraps);
+    std::vector<EpollEvent*> epoll_;
+    std::vector<std::thread> threads_;
+    std::map<TcpConnection*,ConInfo> conMap_;
+    std::vector<int> conNums_;
+    int looping_;
+    int loopNum_;
+    std::vector<std::vector<SocketWrap *>> activeWraps_;
+};
 }
-

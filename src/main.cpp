@@ -1,25 +1,28 @@
 #include <iostream>
-#include "logging.h"
+#include "unistd.h"
+#include "logwrap.h"
 #include "acceptor.h"
 #include "loop.h"
 #include "epollevent.h"
+#include "tcpserver.h"
 
 using namespace DURIANVER;
-using namespace std::placeholders;
 
-void acceptIn(int inFd){
-    char buf[512];
-    int n=read(inFd,buf,sizeof(buf));
-    write(inFd,buf,n);
-   // close(inFd);
-}
+int main()
+{
+    if (0 != daemon(1,0))
+    {
+        std::cout << "daemon failed" << std::endl;
+        exit(1);
+    }
+    //auto my_logger = spdlog::daily_logger_mt(LOGNAME, "logs/daily", 2, 30);
+    auto my_logger = spdlog::basic_logger_mt(LOGNAME, "logs/daily");
+    my_logger->set_level(spdlog::level::debug);
+    my_logger->flush_on(spdlog::level::debug);
+    LOGINFO("*********server begin*********");
 
-int main() {
-    LOGINFO<<"Init server, port:18868";
-    EpollEvent epollevent;
-    Loop loop(&epollevent);
-    Acceptor accept(18868,&loop);
-    //accept.setAcceptCallBack(std::bind(acceptIn,_1));
-    loop.startLoop();
+    TcpServer server(4, 18868);
+
+    LOGINFO("*********server exit*********");
     return 0;
 }

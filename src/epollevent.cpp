@@ -3,7 +3,7 @@
 //
 
 #include "epollevent.h"
-#include "logging.h"
+#include "logwrap.h"
 #include "socketwrap.h"
 
 namespace DURIANVER {
@@ -12,7 +12,7 @@ namespace DURIANVER {
         events_.resize(maxEvents_);
         epollFd_=epoll_create(maxEvents_);
         if(epollFd_<0) {
-            LOGERR<<"Create epoll failed";
+            LOGERR("Create epoll failed");
             exit(0);
         }
     }
@@ -27,7 +27,7 @@ namespace DURIANVER {
         event.data.ptr=wrap;
         event.events=wrap->getEvent();
         if(epoll_ctl(epollFd_,epollCtl,wrap->getSocketFd(),&event)<0) {
-            LOGERR<< "Epoll add listenFd failed";
+            LOGERR("epoll_ctl failed, mod:{} epollfd:{} fd:{} events:{}", epollCtl, epollFd_, wrap->getSocketFd(), event.events);
             return -1;
         }
         wrap->addToEpoll(true);
@@ -36,6 +36,10 @@ namespace DURIANVER {
 
     int EpollEvent::epoll(std::vector<SocketWrap *> &activeWraps) {
         int nums=epoll_wait(epollFd_,events_.data(),maxEvents_,-1);
+        if(nums==-1){
+            LOGERR("Epoll wait err");
+            return -1;
+        }
         if (nums>activeWraps.size())
             activeWraps.resize(nums);
         for (int i = 0; i < nums; ++i) {

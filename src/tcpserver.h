@@ -4,16 +4,19 @@
 
 #pragma once
 
-#include "loop.h"
+namespace DURIANVER
+{
 
-namespace DURIANVER {
-    class TcpServer {
-    public:
-        TcpServer(Loop* loop,int port);
-        ~TcpServer();
+class Loop;
 
-    private:
-        Loop* loop_;
-        int port_;
-    };
+class TcpServer
+{
+  public:
+    TcpServer(int threadNum, int port);
+    ~TcpServer();
+
+  private:
+    int threadNum_;
+    int port_;
+};
 }
